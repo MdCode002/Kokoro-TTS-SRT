@@ -11,11 +11,16 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-# Install Python dependencies
+# Install Python dependencies (cached unless requirements.txt changes)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code
+# Pre-download the Kokoro model into the image so it's baked in
+# This avoids re-downloading on first startup after a rebuild
+RUN python -c "from kokoro import KPipeline; KPipeline(lang_code='a', device='cpu')" && \
+    echo "Model pre-downloaded successfully"
+
+# Copy source code LAST (most frequently changed layer)
 COPY . .
 
 EXPOSE 8000

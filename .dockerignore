@@ -1,0 +1,10 @@
+.git
+.env
+.env.example
+__pycache__
+*.pyc
+kokoro-cache/
+*.md
+docker-compose.yml
+.dockerignore
+.gitignore
