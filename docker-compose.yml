@@ -1,0 +1,26 @@
+services:
+  kokoro-custom:
+    build: .
+    ports:
+      - "8880:8000"
+    volumes:
+      - kokoro-cache:/root/.cache
+    environment:
+      - PYTHONUNBUFFERED=1
+      - API_KEY=change_me_super_secret_key_123
+      - KOKORO_LANG_CODE=a
+      - MODEL_DEVICE=cpu
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+volumes:
+  kokoro-cache:
