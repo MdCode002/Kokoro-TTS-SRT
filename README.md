@@ -13,7 +13,13 @@ Custom FastAPI server that wraps the Kokoro TTS model with native timestamp extr
 
 ### Configuration (Environment Variables)
 
-You can configure the API by modifying the `environment` section in the `docker-compose.yml` file:
+Create a `.env` file at the root of the project by copying the `.env.example` file:
+
+```bash
+cp .env.example .env
+```
+
+You can configure the API by modifying the `.env` file:
 
 | Variable           | Default                         | Description                                                                 |
 | ------------------ | ------------------------------- | --------------------------------------------------------------------------- |

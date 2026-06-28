@@ -5,11 +5,10 @@ services:
       - "8880:8000"
     volumes:
       - kokoro-cache:/root/.cache
+    env_file:
+      - .env
     environment:
       - PYTHONUNBUFFERED=1
-      - API_KEY=change_me_super_secret_key_123
-      - KOKORO_LANG_CODE=a
-      - MODEL_DEVICE=cpu
     deploy:
       resources:
         limits:

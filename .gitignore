@@ -1,0 +1,4 @@
+.env
+kokoro-cache/
+__pycache__/
+*.pyc
