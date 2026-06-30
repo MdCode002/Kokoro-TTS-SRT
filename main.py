@@ -10,7 +10,9 @@ FastAPI server that wraps Kokoro TTS pipeline.
 
 import os
 import io
+import gc
 import base64
+import logging
 import subprocess
 import numpy as np
 import soundfile as sf
@@ -31,6 +33,9 @@ app = FastAPI(
 API_KEY = os.environ.get("API_KEY", "change_me_in_docker_compose")
 LANG_CODE = os.environ.get("KOKORO_LANG_CODE", "a")  # a: American, b: British, f: French, etc.
 DEVICE = os.environ.get("MODEL_DEVICE", "cpu")
+MODEL_MODE = os.environ.get("MODEL_MODE", "on_demand")  # persistent: keep in RAM, on_demand: load/unload per request
+
+logger = logging.getLogger("kokoro-api")
 
 # API Key Security
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
@@ -47,9 +52,19 @@ def get_api_key(api_key_header: str = Security(api_key_header)):
 pipelines_cache: dict[str, KPipeline] = {}
 
 def get_pipeline(lang_code: str) -> KPipeline:
+    """Load or retrieve a cached pipeline for the given language."""
     if lang_code not in pipelines_cache:
+        logger.info(f"Loading Kokoro pipeline for lang='{lang_code}' on device='{DEVICE}'...")
         pipelines_cache[lang_code] = KPipeline(lang_code=lang_code, device=DEVICE)
+        logger.info(f"Pipeline for lang='{lang_code}' loaded successfully.")
     return pipelines_cache[lang_code]
+
+
+def release_pipelines():
+    """Unload all cached pipelines and free memory. Used in on_demand mode."""
+    pipelines_cache.clear()
+    gc.collect()
+    logger.info("All pipelines released, memory freed.")
 
 
 # Models
@@ -225,9 +240,23 @@ def generate_tts(req: TTSRequest, api_key: str = Depends(get_api_key)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
+    finally:
+        # In on_demand mode, free the model from RAM after each request
+        if MODEL_MODE == "on_demand":
+            release_pipelines()
 
 # Health check
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# Status endpoint — check model mode and loaded pipelines
+@app.get("/status")
+def status():
+    return {
+        "status": "ok",
+        "model_mode": MODEL_MODE,
+        "pipelines_loaded": list(pipelines_cache.keys()),
+        "model_in_memory": len(pipelines_cache) > 0,
+    }
