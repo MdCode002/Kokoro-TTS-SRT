@@ -17,7 +17,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Pre-download the Kokoro model into the image so it's baked in
 # This avoids re-downloading on first startup after a rebuild
-RUN python -c "from kokoro import KPipeline; KPipeline(lang_code='a', device='cpu')" && \
+RUN python -c "\
+import warnings; \
+warnings.filterwarnings('ignore'); \
+from kokoro import KPipeline; \
+KPipeline(lang_code='a', repo_id='hexgrad/Kokoro-82M', device='cpu')" && \
     echo "Model pre-downloaded successfully"
 
 # Copy source code LAST (most frequently changed layer)

@@ -13,6 +13,7 @@ import io
 import gc
 import base64
 import logging
+import warnings
 import subprocess
 import numpy as np
 import soundfile as sf
@@ -22,6 +23,10 @@ from starlette.status import HTTP_403_FORBIDDEN
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from kokoro import KPipeline
+
+# Suppress noisy PyTorch deprecation warnings (dropout, weight_norm)
+warnings.filterwarnings("ignore", message=".*dropout option adds dropout after all but last recurrent layer.*")
+warnings.filterwarnings("ignore", message=".*torch.nn.utils.weight_norm.*is deprecated.*")
 
 app = FastAPI(
     title="Kokoro TTS API",
@@ -55,7 +60,11 @@ def get_pipeline(lang_code: str) -> KPipeline:
     """Load or retrieve a cached pipeline for the given language."""
     if lang_code not in pipelines_cache:
         logger.info(f"Loading Kokoro pipeline for lang='{lang_code}' on device='{DEVICE}'...")
-        pipelines_cache[lang_code] = KPipeline(lang_code=lang_code, device=DEVICE)
+        pipelines_cache[lang_code] = KPipeline(
+            lang_code=lang_code,
+            repo_id='hexgrad/Kokoro-82M',
+            device=DEVICE,
+        )
         logger.info(f"Pipeline for lang='{lang_code}' loaded successfully.")
     return pipelines_cache[lang_code]
 
@@ -244,6 +253,17 @@ def generate_tts(req: TTSRequest, api_key: str = Depends(get_api_key)):
         # In on_demand mode, free the model from RAM after each request
         if MODEL_MODE == "on_demand":
             release_pipelines()
+
+# Root endpoint — avoids 404 when someone hits /
+@app.get("/")
+def root():
+    return {
+        "service": "Kokoro TTS API",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "health": "/health",
+    }
+
 
 # Health check
 @app.get("/health")
